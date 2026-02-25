@@ -85,16 +85,116 @@
     @endsession
 
     <!-- Action Bar -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+    <div
+        class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4"
+        x-data="{
+            showOverdueModal: false,
+            overdueBookings: @js($overdueBookings->map(fn($b) => [
+                'id'         => $b->id,
+                'asset_label'=> $b->asset_type_label,
+                'asset_name' => match($b->asset_type_label) {
+                    'Vehicle'      => ($b->asset?->model ?? 'N/A') . ($b->asset?->plate_number ? ' ('.$b->asset->plate_number.')' : ''),
+                    default        => $b->asset?->name ?? 'N/A',
+                },
+                'end_time'   => \Carbon\Carbon::parse($b->end_time)->format('M d, Y h:i A'),
+                'show_url'   => route('bookings.show.user', ['id' => $b->id]),
+            ])),
+            createUrl: '{{ route('bookings.create') }}',
+            tryCreate() {
+                if (this.overdueBookings.length > 0) {
+                    this.showOverdueModal = true;
+                } else {
+                    window.location.href = this.createUrl;
+                }
+            }
+        }"
+    >
         <div class="">
             <!-- Create Button -->
             @can('book.create')
                 <div class="flex justify-between items-center">
-                    <flux:button variant="primary" href="{{ route('bookings.create') }}" icon="plus" class="w-full sm:w-auto">
+                    <flux:button variant="primary" icon="plus" class="w-full sm:w-auto" @click="tryCreate()">
                         Create New Booking
                     </flux:button>
                 </div>
             @endcan
+        </div>
+
+        {{-- ── Overdue Bookings Warning Modal ── --}}
+        <div
+            x-show="showOverdueModal"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style="display:none;"
+        >
+            <div class="absolute inset-0 bg-black/50"></div>
+
+            <div
+                x-show="showOverdueModal"
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 scale-100"
+                x-transition:leave-end="opacity-0 scale-95 translate-y-4"
+                class="relative z-10 w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden"
+                style="display:none;"
+                @click.stop
+            >
+                {{-- Header --}}
+                <div class="flex items-start gap-3 p-6 pb-4">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Action Required Before Booking</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                            You have <span class="font-semibold text-amber-600 dark:text-amber-400" x-text="overdueBookings.length"></span>
+                            overdue booking<span x-show="overdueBookings.length > 1">s</span> that must be marked as <strong>Done</strong> before creating a new booking.
+                        </p>
+                    </div>
+                    <button @click="showOverdueModal = false" type="button" class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-500 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="border-t border-gray-100 dark:border-zinc-800 mx-6"></div>
+
+                {{-- Overdue list --}}
+                <div class="p-6 pt-4 space-y-3 max-h-72 overflow-y-auto">
+                    <template x-for="booking in overdueBookings" :key="booking.id">
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-semibold text-gray-900 dark:text-white truncate" x-text="booking.asset_name"></div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                                    <span x-text="booking.asset_label"></span>
+                                    <span class="opacity-40">·</span>
+                                    <span class="text-red-500 dark:text-red-400">Ended <span x-text="booking.end_time"></span></span>
+                                </div>
+                            </div>
+                            <a
+                                :href="booking.show_url"
+                                class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors"
+                            >
+                                Mark Done
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </a>
+                        </div>
+                    </template>
+                </div>
+
+                {{-- Footer --}}
+                <div class="border-t border-gray-100 dark:border-zinc-800 px-6 py-4 flex justify-end">
+                    <flux:button variant="ghost" size="sm" @click="showOverdueModal = false">Close</flux:button>
+                </div>
+            </div>
         </div>
         <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full md:w-auto">
             <flux:select wire:model.live="statusFilter" placeholder="All Status" class="min-w-32 w-full sm:w-auto">

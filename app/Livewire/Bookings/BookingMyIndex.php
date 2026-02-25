@@ -31,8 +31,15 @@ class BookingMyIndex extends Component
     public function render()
     {
         $bookings = $this->getBookingsQuery();
-        
-        return view('livewire.bookings.booking-my-index', compact('bookings'));
+
+        $overdueBookings = Booking::with('asset')
+            ->where('booked_by', auth()->id())
+            ->where('status', 'approved')
+            ->where('end_time', '<', now())
+            ->orderBy('end_time', 'asc')
+            ->get();
+
+        return view('livewire.bookings.booking-my-index', compact('bookings', 'overdueBookings'));
     }
 
     private function getBookingsQuery()

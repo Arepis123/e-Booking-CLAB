@@ -197,10 +197,8 @@
         <p class="text-gray-600 mt-1 dark:text-gray-400">{{ __('Monitor and manage all bookings here') }}</p>
     </div>
 
-    <!-- Announcement Banner Carousel -->
-    <div class="my-4">
-        <livewire:announcement-banner />
-    </div>
+    <!-- Announcement Modal Popup -->
+    <livewire:announcement-banner />
 
     <div x-data="{ currentView: 'calendar' }" class="space-y-4 my-4">
         <!-- Radio Group Toggle - Desktop (hidden on mobile) -->
