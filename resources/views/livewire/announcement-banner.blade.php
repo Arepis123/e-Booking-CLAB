@@ -1,3 +1,4 @@
+<div>
 @if($announcements && $announcements->count() > 0)
 <div
     x-data="{
@@ -347,3 +348,4 @@
     </div>
 </div>
 @endif
+</div>
